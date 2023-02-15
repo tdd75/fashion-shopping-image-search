@@ -4,6 +4,6 @@ WORKDIR /app/image_search
 
 COPY requirements.txt .
 
-RUN python3 -m pip install -r requirements.txt
+RUN pip install -r requirements.txt
 
 COPY . .
