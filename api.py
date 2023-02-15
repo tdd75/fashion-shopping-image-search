@@ -1,9 +1,11 @@
-from feature_vector import FeatureVector
 from fastapi import FastAPI
 import pickle
 from pydantic import BaseModel
+from dotenv import load_dotenv
+load_dotenv()
 
 import helpers
+from feature_vector import FeatureVector
 
 app = FastAPI()
 

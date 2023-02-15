@@ -4,9 +4,6 @@ from fastai.vision import load_learner
 import psycopg2
 import pickle
 import os
-from dotenv import load_dotenv
-load_dotenv()
-
 
 warnings.filterwarnings("ignore")
 
