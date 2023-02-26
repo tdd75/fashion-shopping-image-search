@@ -21,14 +21,12 @@ feature_vector = FeatureVector()
 def query_image(file: FileSchema):
     file_path = helpers.save_to_tmp_image(file.file)
 
-    vector = feature_vector.calculate_feature_vector(file_path)
-    distances = feature_vector.calculate_distances(vector)
-    distances.sort(key=lambda x: x[1])
-    id_list = [prod[0] for prod in distances[:20]]
+    vector = feature_vector.calculate_vector(file_path)
+    result_ids = feature_vector.calculate_distances(vector)
 
     helpers.remove_tmp_image(file_path)
     return {
-        'results': id_list
+        'results': result_ids
     }
 
 
@@ -36,7 +34,7 @@ def query_image(file: FileSchema):
 def get_vector(file: FileSchema):
     file_path = helpers.save_to_tmp_image(file.file)
 
-    vector = feature_vector.calculate_feature_vector(file_path)
+    vector = feature_vector.calculate_vector(file_path)
 
     helpers.remove_tmp_image(file_path)
     return {
