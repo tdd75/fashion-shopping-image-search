@@ -6,6 +6,7 @@ from keras.losses import cosine_similarity
 from PIL import Image
 import psycopg2
 import pickle
+import hashlib
 
 import logging
 _logger = logging.getLogger(__name__)
@@ -29,22 +30,31 @@ class FeatureVector:
         resnet_model = ResNet50(weights='imagenet')
         self.model = Model(inputs=resnet_model.input,
             outputs=resnet_model.get_layer('avg_pool').output)
+        self.cached_query = {}
         self.dnn_features = {}
-        for (id, feature_vector) in cursor.fetchall():
-            self.dnn_features[id] = pickle.loads(bytes.fromhex(feature_vector))
+        for (pid, feature_vector) in cursor.fetchall():
+            self.dnn_features[pid] = pickle.loads(bytes.fromhex(feature_vector))
 
-    def calculate_vector(self, image_path):
+    def calculate_vector(self, image_path, is_dumped=False):
         image = Image.open(image_path)
         image = self._transform_image(image)
-        result = self.model.predict(image)[0]
-        return result
+        vector = self.model.predict(image)[0]
+        if is_dumped:
+            return pickle.dumps(vector).hex()
+        return vector
 
     def calculate_distances(self, query):
-        distances = []
-        for id, feature in self.dnn_features.items():
-            distances.append((id, cosine_similarity(query, feature)))
+        # # try load cache
+        # hashed_query = self._hash_vector(query)
+        # cached = self.cached_query.get(hashed_query)
+        # if cached:
+        #     return cached
+        # calculate
+        distances = [(pid, cosine_similarity(query, feature)) for pid, feature in self.dnn_features.items()]
         distances.sort(key=lambda x: x[1])
         id_list = [prod[0] for prod in distances[:20]]
+        # # caching
+        # self.cached_query[hashed_query] = id_list
         return id_list
     
     def _transform_image(self, image):
@@ -53,5 +63,10 @@ class FeatureVector:
         image = tf.keras.applications.resnet.preprocess_input(image)
         image = tf.expand_dims(image, axis=0)
         return image
+    
+    def _hash_vector(self, vector):
+        hash_object = hashlib.sha256(pickle.dumps(vector))
+        hash_value = hash_object.hexdigest()
+        return hash_value
 
 feature_vector = FeatureVector()

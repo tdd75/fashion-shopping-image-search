@@ -34,11 +34,11 @@ def query_image(file: FileSchema):
 def get_vector(file: FileSchema):
     file_path = helpers.save_to_tmp_image(file.file)
 
-    vector = feature_vector.calculate_vector(file_path)
+    dumped_vector = feature_vector.calculate_vector(file_path, is_dumped=True)
 
     helpers.remove_tmp_image(file_path)
     return {
-        'vector': pickle.dumps(vector).hex()
+        'vector': dumped_vector
     }
 
 
