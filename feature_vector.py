@@ -21,8 +21,6 @@ class FeatureVector:
             port=os.getenv('DB_PORT'),
             host=str(os.getenv('DB_HOST')),
         )
-        conn = psycopg2.connect(
-            'dbname=fashion_shopping user=postgres password=duytd123 port=5432 host=db')
         cursor = conn.cursor()
         # get feature vector from database
         cursor.execute(
