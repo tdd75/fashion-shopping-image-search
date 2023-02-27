@@ -58,6 +58,7 @@ class FeatureVector:
         return id_list
     
     def _transform_image(self, image):
+        image = image.convert('RGB')
         image = image.resize((224, 224))
         image = tf.keras.preprocessing.image.img_to_array(image)
         image = tf.keras.applications.resnet.preprocess_input(image)
