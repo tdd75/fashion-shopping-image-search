@@ -7,6 +7,7 @@ from PIL import Image
 import psycopg2
 import pickle
 import hashlib
+import numpy as np
 
 import logging
 _logger = logging.getLogger(__name__)
@@ -29,12 +30,20 @@ class FeatureVector:
         # define model
         resnet_model = ResNet50(weights='imagenet')
         self.model = Model(inputs=resnet_model.input,
-            outputs=resnet_model.get_layer('avg_pool').output)
-        self.cached_query = {}
-        self.dnn_features = {}
-        for (pid, feature_vector) in cursor.fetchall():
-            self.dnn_features[pid] = pickle.loads(bytes.fromhex(feature_vector))
+                           outputs=resnet_model.get_layer('avg_pool').output)
 
+        self.dnn_features = {}
+        self.labels = []
+        self.features = []
+        
+        for (pid, feature_vector) in cursor.fetchall():
+            vector = pickle.loads(bytes.fromhex(feature_vector))
+            self.dnn_features[pid] = vector
+            self.labels.append(pid)
+            self.features.append(vector)
+        self.feature_norms = np.array([np.linalg.norm(feature) for feature in self.dnn_features.values()])
+        self.features_len = len(self.features)
+        
     def calculate_vector(self, image_path, is_dumped=False):
         image = Image.open(image_path)
         image = self._transform_image(image)
@@ -44,19 +53,20 @@ class FeatureVector:
         return vector
 
     def calculate_distances(self, query):
-        # # try load cache
-        # hashed_query = self._hash_vector(query)
-        # cached = self.cached_query.get(hashed_query)
-        # if cached:
-        #     return cached
-        # calculate
-        distances = [(pid, cosine_similarity(query, feature)) for pid, feature in self.dnn_features.items()]
+        query = np.array(query)
+        features = np.array(self.features)
+        
+        query_norm = np.linalg.norm(query)
+        
+        norms = query_norm * self.feature_norms
+        scalars = np.sum(features * np.tile(query, (self.features_len, 1)), axis=1)
+        distances = [(self.labels[idx], distance) for idx, distance in enumerate(1 - (scalars / norms))]
+        
+        # distances = [(pid, cosine_similarity(query, feature)) for pid, feature in self.dnn_features.items()]
         distances.sort(key=lambda x: x[1])
         id_list = [prod[0] for prod in distances[:20]]
-        # # caching
-        # self.cached_query[hashed_query] = id_list
         return id_list
-    
+
     def _transform_image(self, image):
         image = image.convert('RGB')
         image = image.resize((224, 224))
@@ -64,7 +74,7 @@ class FeatureVector:
         image = tf.keras.applications.resnet.preprocess_input(image)
         image = tf.expand_dims(image, axis=0)
         return image
-    
+
     def _hash_vector(self, vector):
         hash_object = hashlib.sha256(pickle.dumps(vector))
         hash_value = hash_object.hexdigest()
